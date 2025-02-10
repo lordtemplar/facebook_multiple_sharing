@@ -4,7 +4,7 @@ import time
 import random
 import json
 
-# Load Secrets (Page Access Tokens)
+# Load Facebook Page Access Tokens from Streamlit Secrets
 FB_ACCESS_TOKENS = json.loads(st.secrets["FB_ACCESS_TOKENS"])  # { "page_id1": "token1", "page_id2": "token2", ... }
 
 # Function to share a post link to multiple pages
@@ -36,14 +36,17 @@ def share_post_to_pages(post_link):
 
 # Streamlit UI
 st.title("📢 Facebook Post Link Sharer")
+st.write("Enter a Facebook post link and share it to multiple fan pages.")
 
-post_link = st.text_input("📌 Enter Facebook Post Link:")
+# Single input field for the post URL
+post_link = st.text_input("📌 Facebook Post URL:")
 
-if st.button("Share to Pages"):
+# Single button to trigger sharing
+if st.button("Share to All Pages"):
     if not post_link or "facebook.com" not in post_link:
-        st.error("⚠️ Please enter a valid Facebook post link.")
+        st.error("⚠️ Please enter a valid Facebook post URL.")
     else:
-        st.info("Sharing post link to all pages... Please wait.")
+        st.info("Sharing the post... Please wait.")
         results = share_post_to_pages(post_link)
 
         # Display results
