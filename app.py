@@ -1,36 +1,52 @@
 import streamlit as st
 import requests
+import time
+import random
 import json
 
-# Load Secrets (Access Token from Streamlit Secrets)
-FB_ACCESS_TOKEN = st.secrets["FB_ACCESS_TOKEN"]  # A single user access token with "pages_read_engagement"
-BASE_GRAPH_API = "https://graph.facebook.com/v19.0"
+# Load Secrets (Page Access Tokens)
+FB_ACCESS_TOKENS = json.loads(st.secrets["FB_ACCESS_TOKENS"])  # { "page_id1": "token1", "page_id2": "token2", ... }
 
-def get_latest_post_link(page_id_or_username):
-    """Fetch the latest post link from a Facebook Page"""
-    try:
-        api_url = f"{BASE_GRAPH_API}/{page_id_or_username}/posts?fields=id,permalink_url&limit=1&access_token={FB_ACCESS_TOKEN}"
-        response = requests.get(api_url)
-        data = response.json()
+# Function to share a post link to multiple pages
+def share_post_to_pages(post_link):
+    shared_results = []
+    
+    for page_id, access_token in FB_ACCESS_TOKENS.items():
+        try:
+            api_url = f"https://graph.facebook.com/v19.0/{page_id}/feed"
+            payload = {
+                "link": post_link,
+                "access_token": access_token
+            }
+            response = requests.post(api_url, data=payload)
+            result = response.json()
 
-        if "data" in data and len(data["data"]) > 0:
-            latest_post = data["data"][0]
-            return latest_post["permalink_url"]
-        else:
-            return "⚠️ No posts found or insufficient permissions."
+            if "id" in result:
+                shared_results.append((page_id, "✅ Success", result["id"]))
+            else:
+                shared_results.append((page_id, "❌ Failed", result.get("error", {}).get("message", "Unknown error")))
 
-    except Exception as e:
-        return f"❌ Error: {str(e)}"
+            # Random delay (10-30 sec)
+            time.sleep(random.randint(10, 30))
+
+        except Exception as e:
+            shared_results.append((page_id, "❌ Failed", str(e)))
+
+    return shared_results
 
 # Streamlit UI
-st.title("🔍 Fetch Latest Facebook Post Link")
+st.title("📢 Facebook Post Link Sharer")
 
-page_id = st.text_input("📌 Enter Facebook Page ID or Username:")
+post_link = st.text_input("📌 Enter Facebook Post Link:")
 
-if st.button("Get Latest Post Link"):
-    if not page_id:
-        st.error("⚠️ Please enter a Facebook Page ID or username.")
+if st.button("Share to Pages"):
+    if not post_link or "facebook.com" not in post_link:
+        st.error("⚠️ Please enter a valid Facebook post link.")
     else:
-        st.info("Fetching the latest post link...")
-        post_link = get_latest_post_link(page_id)
-        st.success(f"📌 Latest Post Link: [Click here]({post_link})" if "http" in post_link else post_link)
+        st.info("Sharing post link to all pages... Please wait.")
+        results = share_post_to_pages(post_link)
+
+        # Display results
+        st.write("## 📌 Sharing Results")
+        for page_id, status, detail in results:
+            st.write(f"🔹 Page {page_id}: {status} ({detail})")
