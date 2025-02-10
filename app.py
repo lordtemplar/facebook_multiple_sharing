@@ -1,53 +1,36 @@
 import streamlit as st
 import requests
-import time
-import random
 import json
-import os
 
-# โหลด Secrets (Access Token & Page IDs) จาก Streamlit Cloud
-FB_ACCESS_TOKENS = json.loads(st.secrets["FB_ACCESS_TOKENS"])  # { "page_id1": "token1", "page_id2": "token2", ... }
+# Load Secrets (Access Token from Streamlit Secrets)
+FB_ACCESS_TOKEN = st.secrets["FB_ACCESS_TOKEN"]  # A single user access token with "pages_read_engagement"
+BASE_GRAPH_API = "https://graph.facebook.com/v19.0"
 
-# ฟังก์ชันสำหรับแชร์โพสต์ไปยังเพจ
-def share_post_to_pages(post_url):
-    shared_results = []
-    
-    for page_id, access_token in FB_ACCESS_TOKENS.items():
-        try:
-            api_url = f"https://graph.facebook.com/v19.0/{page_id}/feed"
-            payload = {
-                "link": post_url,
-                "access_token": access_token
-            }
-            response = requests.post(api_url, data=payload)
-            result = response.json()
+def get_latest_post_link(page_id_or_username):
+    """Fetch the latest post link from a Facebook Page"""
+    try:
+        api_url = f"{BASE_GRAPH_API}/{page_id_or_username}/posts?fields=id,permalink_url&limit=1&access_token={FB_ACCESS_TOKEN}"
+        response = requests.get(api_url)
+        data = response.json()
 
-            if "id" in result:
-                shared_results.append((page_id, "✅ แชร์สำเร็จ", result["id"]))
-            else:
-                shared_results.append((page_id, "❌ แชร์ไม่สำเร็จ", result.get("error", {}).get("message", "Unknown error")))
+        if "data" in data and len(data["data"]) > 0:
+            latest_post = data["data"][0]
+            return latest_post["permalink_url"]
+        else:
+            return "⚠️ No posts found or insufficient permissions."
 
-            # หน่วงเวลาสุ่ม 10-30 วินาที
-            time.sleep(random.randint(10, 30))
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
 
-        except Exception as e:
-            shared_results.append((page_id, "❌ แชร์ไม่สำเร็จ", str(e)))
+# Streamlit UI
+st.title("🔍 Fetch Latest Facebook Post Link")
 
-    return shared_results
+page_id = st.text_input("📌 Enter Facebook Page ID or Username:")
 
-# UI หลักของ Streamlit
-st.title("📢 Multiple Facebook Post Sharing")
-
-post_url = st.text_input("📌 ใส่ลิงก์โพสต์ Facebook ที่ต้องการแชร์")
-
-if st.button("แชร์ไปยังทุกเพจ"):
-    if not post_url:
-        st.error("กรุณาใส่ลิงก์โพสต์ก่อนแชร์")
+if st.button("Get Latest Post Link"):
+    if not page_id:
+        st.error("⚠️ Please enter a Facebook Page ID or username.")
     else:
-        st.info("กำลังแชร์โพสต์ไปยังเพจทั้งหมด... กรุณารอ")
-        results = share_post_to_pages(post_url)
-
-        # แสดงผลลัพธ์
-        st.write("## 📌 ผลการแชร์โพสต์")
-        for page_id, status, detail in results:
-            st.write(f"🔹 เพจ {page_id}: {status} ({detail})")
+        st.info("Fetching the latest post link...")
+        post_link = get_latest_post_link(page_id)
+        st.success(f"📌 Latest Post Link: [Click here]({post_link})" if "http" in post_link else post_link)
