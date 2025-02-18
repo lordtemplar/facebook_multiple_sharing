@@ -1,13 +1,10 @@
 import streamlit as st
 import requests
+import json
 import time
 import random
-import json
 
-# Debugging: Check if the app starts properly
-st.write("✅ Streamlit app is running...")
-
-# Load Facebook Access Tokens from Streamlit Secrets
+# Load Facebook Page Access Tokens from Streamlit Secrets
 FB_ACCESS_TOKENS = {}
 try:
     if "FB_ACCESS_TOKENS" in st.secrets:
